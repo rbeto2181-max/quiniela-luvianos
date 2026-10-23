@@ -2,59 +2,266 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LA QUINIELA LUVIANOS</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #101820;
-      color: white;
-    }
-    header {
-      background: #087f5b;
-      padding: 28px 15px;
-      text-align: center;
-    }
-    h1 { margin: 0; font-size: 27px; }
-    header p { margin-bottom: 0; }
-    main { max-width: 800px; margin: auto; padding: 18px; }
-    .card {
-      background: #1d2b36;
-      border-radius: 12px;
-      padding: 18px;
-      margin-bottom: 18px;
-    }
-    h2 { color: #63e6be; }
-    .muted { color: #c5d0d8; }
-    a { color: #63e6be; }
-    footer { text-align: center; padding: 20px; color: #c5d0d8; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LA QUINIELA LUVIANOS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101820;color:white;font-family:Arial,sans-serif}
+header{background:#087f5b;text-align:center;padding:25px 12px}
+h1{font-size:25px;margin:0}
+main{max-width:700px;margin:auto;padding:15px}
+.card{background:#1d2b36;padding:18px;border-radius:12px;margin-bottom:16px}
+h2{color:#63e6be;font-size:20px}
+input,button{width:100%;padding:13px;margin:6px 0;border-radius:7px;border:0;font-size:16px}
+input{background:#fff;color:#111}
+button{background:#087f5b;color:white;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5}
+.match{background:#263945;padding:13px;border-radius:8px;margin:12px 0}
+.teams{font-weight:bold;margin-bottom:8px}
+.scores{display:flex;gap:10px}
+.scores input{text-align:center;min-width:0}
+.muted{color:#c5d0d8}
+#message{white-space:pre-wrap}
+footer{text-align:center;padding:20px;color:#c5d0d8}
+</style>
 </head>
 <body>
-  <header>
-    <h1>⚽ LA QUINIELA LUVIANOS</h1>
-    <p>Pronostica, compite y demuestra que sabes de fútbol</p>
-  </header>
-  <main>
-    <section class="card">
-      <h2>⚽ Próximos partidos</h2>
-      <p class="muted">Próximamente aparecerán aquí los partidos de la quiniela.</p>
-    </section>
-    <section class="card">
-      <h2>📋 Mis pronósticos</h2>
-      <p class="muted">Aquí podrás consultar y registrar tus marcadores.</p>
-    </section>
-    <section class="card">
-      <h2>🏆 Tabla de posiciones</h2>
-      <p class="muted">Aquí se mostrarán los participantes y sus puntos.</p>
-    </section>
-    <section class="card">
-      <h2>🔐 Administración</h2>
-      <p class="muted">El acceso de administrador se configurará al conectar Supabase.</p>
-    </section>
-  </main>
-  <footer>LA QUINIELA LUVIANOS · Todos los derechos reservados</footer>
+<header>
+<h1>⚽ LA QUINIELA LUVIANOS</h1>
+<p>Pronostica, compite y demuestra que sabes de fútbol</p>
+</header>
+<main>
+<section class="card">
+<h2>👤 Entrar a la quiniela</h2>
+<p class="muted">Escribe tu apodo para identificarte.</p>
+<input id="nickname" maxlength="30" placeholder="Tu nombre o apodo">
+<button id="enter">Entrar</button>
+<p id="message" class="muted">Conecta la página para comenzar.</p>
+</section>
+
+<section class="card">
+<h2>⚽ Próximos partidos</h2>
+<p class="muted">Los partidos aparecerán cuando se registren en la base de datos.</p>
+<div id="matches">Esperando conexión...</div>
+</section>
+
+<section class="card">
+<h2>📋 Mis pronósticos</h2>
+<p class="muted">Entra con tu apodo y guarda tus marcadores.</p>
+<div id="predictions">Primero debes entrar.</div>
+</section>
+
+<section class="card">
+<h2>🏆 Tabla de posiciones</h2>
+<button id="refresh">Actualizar tabla</button>
+<div id="standings" class="muted">Aún no se ha cargado la tabla.</div>
+</section>
+</main>
+<footer>LA QUINIELA LUVIANOS · Todos los derechos reservados</footer>
+
+<script>
+const SUPABASE_URL = "PEGA_AQUI_TU_PROJECT_URL";
+const SUPABASE_KEY = "PEGA_AQUI_TU_PUBLISHABLE_KEY";
+
+let db = null;
+let user = null;
+let profileReady = false;
+let loadedMatches = [];
+
+const $ = id => document.getElementById(id);
+const say = text => $("message").textContent = text;
+
+function setup(){
+  if(!window.supabase){
+    say("No se pudo cargar la conexión. Revisa tu internet.");
+    return false;
+  }
+  if(SUPABASE_URL.includes("https://sillvrktwziuscxtxbsb.supabase.co/rest/v1/") ||
+     SUPABASE_KEY.includes("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpbGx2cmt0d3ppdXNjeHR4YnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MTI4ODQsImV4cCI6MjEwODI4ODg4NH0.A5lBn-tAEB4iXCWEVfv5lKJEERQF3O3vYuHQkCXpUuw")){
+    say("Falta colocar la URL y la clave pública de Supabase en el código.");
+    return false;
+  }
+  db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  return true;
+}
+
+async function enter(){
+  if(!setup()) return;
+  const name = $("nickname").value.trim();
+  if(name.length < 2){
+    say("Escribe un apodo de al menos 2 caracteres.");
+    return;
+  }
+  $("enter").disabled = true;
+  try{
+    let {data:sessionData,error:sessionError} =
+      await db.auth.getSession();
+    if(sessionError) throw sessionError;
+
+    if(!sessionData.session){
+      const {error} = await db.auth.signInAnonymously();
+      if(error) throw error;
+    }
+
+    const {data:{user:currentUser},error:userError} =
+      await db.auth.getUser();
+    if(userError) throw userError;
+    user = currentUser;
+
+    const {error:profileError} = await db.from("profiles").upsert({
+      id:user.id,
+      display_name:name
+    },{onConflict:"id"});
+
+    if(profileError) throw profileError;
+    profileReady = true;
+    say("¡Bienvenido, " + name + "! Ya puedes consultar los partidos.");
+    await loadMatches();
+    await loadPredictions();
+    await loadStandings();
+  }catch(e){
+    say("No se pudo entrar: " + e.message +
+      "\nPuede faltar habilitar el acceso anónimo o ajustar las políticas de seguridad de Supabase.");
+  }finally{
+    $("enter").disabled = false;
+  }
+}
+
+async function loadMatches(){
+  if(!db) return;
+  const {data,error} = await db.from("matches")
+    .select("id,home_team,away_team,kickoff_at,status,home_score,away_score")
+    .order("kickoff_at",{ascending:true});
+  if(error){
+    $("matches").textContent = "No se pudieron cargar los partidos: " + error.message;
+    return;
+  }
+  loadedMatches = data || [];
+  if(!loadedMatches.length){
+    $("matches").textContent = "Todavía no hay partidos registrados. El administrador debe agregarlos.";
+    return;
+  }
+  $("matches").innerHTML = "";
+  loadedMatches.forEach(m=>{
+    const div = document.createElement("div");
+    div.className = "match";
+    const date = m.kickoff_at ?
+      new Date(m.kickoff_at).toLocaleString("es-MX") : "Fecha por confirmar";
+    const title = document.createElement("div");
+    title.className = "teams";
+    title.textContent = m.home_team + " vs " + m.away_team;
+    const when = document.createElement("p");
+    when.className = "muted";
+    when.textContent = date + " · " + (m.status || "Programado");
+    div.append(title,when);
+    if(m.status !== "finished" && m.status !== "finalizado"){
+      const row = document.createElement("div");
+      row.className = "scores";
+      const home = document.createElement("input");
+      home.type = "number"; home.min = "0"; home.max = "99";
+      home.placeholder = m.home_team;
+      home.id = "h"+m.id;
+      const away = document.createElement("input");
+      away.type = "number"; away.min = "0"; away.max = "99";
+      away.placeholder = m.away_team;
+      away.id = "a"+m.id;
+      const save = document.createElement("button");
+      save.textContent = "Guardar pronóstico";
+      save.onclick = ()=>savePrediction(m.id);
+      div.append(row,save);
+      row.append(home,away);
+    }else{
+      const result = document.createElement("p");
+      result.textContent = "Resultado: " + m.home_score + " - " + m.away_score;
+      div.append(result);
+    }
+    $("matches").append(div);
+  });
+}
+
+async function savePrediction(matchId){
+  if(!user || !profileReady){
+    say("Primero entra con tu apodo.");
+    return;
+  }
+  const home = $("h"+matchId).value;
+  const away = $("a"+matchId).value;
+  if(home === "" || away === "" ||
+     Number(home)<0 || Number(away)<0 ||
+     Number(home)>99 || Number(away)>99){
+    say("Escribe los dos marcadores, de 0 a 99.");
+    return;
+  }
+  try{
+    const {error} = await db.from("predictions").upsert({
+      match_id:matchId,
+      user_id:user.id,
+      predicted_home:Number(home),
+      predicted_away:Number(away)
+    },{onConflict:"match_id,user_id"});
+    if(error) throw error;
+    say("Pronóstico guardado correctamente.");
+    await loadPredictions();
+  }catch(e){
+    say("No se pudo guardar el pronóstico: " + e.message +
+      "\nRevisaremos las políticas de seguridad y la restricción única de la tabla.");
+  }
+}
+
+async function loadPredictions(){
+  if(!db || !user) return;
+  const {data,error} = await db.from("predictions")
+    .select("match_id,predicted_home,predicted_away,points")
+    .eq("user_id",user.id);
+  if(error){
+    $("predictions").textContent = "No se pudieron consultar: " + error.message;
+    return;
+  }
+  $("predictions").innerHTML = "";
+  if(!data || !data.length){
+    $("predictions").textContent = "Todavía no has guardado pronósticos.";
+    return;
+  }
+  data.forEach(p=>{
+    const m = loadedMatches.find(x=>x.id===p.match_id);
+    const div = document.createElement("p");
+    div.textContent = (m ? m.home_team+" vs "+m.away_team : "Partido")+
+      ": "+p.predicted_home+" - "+p.predicted_away+
+      " · Puntos: "+(p.points ?? 0);
+    $("predictions").append(div);
+  });
+}
+
+async function loadStandings(){
+  if(!db) return;
+  const {data,error} = await db.from("tabla_posiciones").select("*");
+  if(error){
+    $("standings").textContent = "No se pudo cargar la tabla: "+error.message;
+    return;
+  }
+  $("standings").innerHTML = "";
+  if(!data || !data.length){
+    $("standings").textContent = "La tabla aparecerá cuando haya participantes con pronósticos.";
+    return;
+  }
+  data.sort((a,b)=>(b.puntos ?? b.total_puntos ?? b.points ?? 0)-
+                   (a.puntos ?? a.total_puntos ?? a.points ?? 0));
+  data.forEach((p,i)=>{
+    const line = document.createElement("p");
+    line.textContent = (i+1)+". "+(p.display_name || "Participante")+
+      " — "+(p.puntos ?? p.total_puntos ?? p.points ?? 0)+" puntos";
+    $("standings").append(line);
+  });
+}
+
+$("enter").addEventListener("click",enter);
+$("refresh").addEventListener("click",async()=>{
+  if(!setup()) return;
+  await loadMatches();
+  await loadStandings();
+});
+</script>
 </body>
 </html>
