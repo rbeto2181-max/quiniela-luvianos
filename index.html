@@ -62,8 +62,8 @@ footer{text-align:center;padding:20px;color:#c5d0d8}
 <footer>LA QUINIELA LUVIANOS · Todos los derechos reservados</footer>
 
 <script>
-const SUPABASE_URL = "PEGA_AQUI_TU_PROJECT_URL";
-const SUPABASE_KEY = "PEGA_AQUI_TU_PUBLISHABLE_KEY";
+const SUPABASE_URL = "https://sillvrktwziuscxtxbsb.supabase.co/rest/v1/";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpbGx2cmt0d3ppdXNjeHR4YnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MTI4ODQsImV4cCI6MjEwODI4ODg4NH0.A5lBn-tAEB4iXCWEVfv5lKJEERQF3O3vYuHQkCXpUuw";
 
 let db = null;
 let user = null;
@@ -78,8 +78,8 @@ function setup(){
     say("No se pudo cargar la conexión. Revisa tu internet.");
     return false;
   }
-  if(SUPABASE_URL.includes("PEGA_AQUI") ||
-     SUPABASE_KEY.includes("PEGA_AQUI")){
+  if(SUPABASE_URL.includes("https://sillvrktwziuscxtxbsb.supabase.co/rest/v1/") ||
+     SUPABASE_KEY.includes("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpbGx2cmt0d3ppdXNjeHR4YnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MTI4ODQsImV4cCI6MjEwODI4ODg4NH0.A5lBn-tAEB4iXCWEVfv5lKJEERQF3O3vYuHQkCXpUuw")){
     say("Falta colocar la URL y la clave pública de Supabase en el código.");
     return false;
   }
